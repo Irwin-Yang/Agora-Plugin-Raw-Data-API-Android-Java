@@ -36,7 +36,6 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
     private static final int PERMISSION_REQ_ID_WRITE_EXTERNAL_STORAGE = PERMISSION_REQ_ID_RECORD_AUDIO + 3;
 
     private MediaDataCallbackUtil mediaDataCallbackUtil;
-    private FileOutputStream fileOutputStream;
 
     private RtcEngine mRtcEngine;// Tutorial Step 1
     private final IRtcEngineEventHandler mRtcEventHandler = new IRtcEngineEventHandler() { // Tutorial Step 1
@@ -161,15 +160,7 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         if (mediaDataCallbackUtil != null) {
             mediaDataCallbackUtil.removeObserverListener(this);
         }
-        if (fileOutputStream != null) {
-            try {
-                fileOutputStream.flush();
-                fileOutputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
 
-        }
     }
 
     int count = 0;
@@ -221,18 +212,6 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         MediaPreProcessing.setCallback(mediaDataCallbackUtil);
         mediaDataCallbackUtil.addObserverListerner(this);
 
-        File file = new File("/sdcard/record.pcm");
-        if (file.exists()) {
-            file.delete();
-        }
-        try {
-            file.createNewFile();
-            fileOutputStream = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     // Tutorial Step 2
@@ -301,22 +280,17 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
     @Override
     public void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, byte[] buffer, int rotation, long renderTimeMs) {
-        Log.i(LOG_TAG, "yttest onCaptureVideoFrame fwidth :" + width + " height:" + height);
+        Log.i(LOG_TAG, "onCaptureVideoFrame width :" + width + " height:" + height);
     }
 
     @Override
     public void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, byte[] buffer, int rotation, long renderTimeMs) {
-        Log.i(LOG_TAG, "yttest onRenderVideoFrame fwidth :" + width + " height:" + height);
+        Log.i(LOG_TAG, "onRenderVideoFrame width :" + width + " height:" + height);
     }
 
     @Override
     public void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs) {
-        Log.i(LOG_TAG, "yttest onRecordAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
-        try {
-            fileOutputStream.write(buffer, 0, buffer.length);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Log.i(LOG_TAG, "onRecordAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
 
     }
 
