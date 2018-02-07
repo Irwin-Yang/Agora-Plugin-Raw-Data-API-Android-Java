@@ -296,7 +296,7 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
     @Override
     public void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs) {
-        Log.i(LOG_TAG, "yttest onPlaybackAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
+        Log.i(LOG_TAG, "onPlaybackAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
 
     }
 
