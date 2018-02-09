@@ -1,6 +1,8 @@
 package io.agora.rtc.plugin.rawdata;
 
 
+import java.nio.ByteBuffer;
+
 public class MediaPreProcessing {
     static {
         System.loadLibrary("apm-plugin-raw-data-api-java");
@@ -8,20 +10,32 @@ public class MediaPreProcessing {
 
     public interface ProgressCallback {
 
-        void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, byte[] buffer, int rotation, long renderTimeMs);
+        void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
 
-        void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, byte[] buffer, int rotation, long renderTimeMs);
+        void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
 
-        void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs);
+        void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
 
-        void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs);
+        void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
 
-        void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs);
+        void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
 
-        void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs);
+        void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
     }
 
     public static native void setCallback(ProgressCallback callback);
+
+    public static native void setVideoCaptureByteBUffer(ByteBuffer byteBuffer);
+
+    public static native void setVideoRenderByteBUffer(ByteBuffer byteBuffer);
+
+    public static native void setAudioRecordByteBUffer(ByteBuffer byteBuffer);
+
+    public static native void setAudioPlayByteBUffer(ByteBuffer byteBuffer);
+
+    public static native void setBeforeAudioMixByteBUffer(ByteBuffer byteBuffer);
+
+    public static native void setAudioMixByteBUffer(ByteBuffer byteBuffer);
 
 
 }

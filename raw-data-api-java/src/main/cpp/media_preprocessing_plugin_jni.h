@@ -14,6 +14,24 @@ extern "C" {
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setCallback
   (JNIEnv *, jobject, jobject);
 
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoCaptureByteBUffer
+        (JNIEnv *, jobject, jobject);
+
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoRenderByteBUffer
+        (JNIEnv *, jobject, jobject);
+
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioRecordByteBUffer
+        (JNIEnv *, jobject, jobject);
+
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioPlayByteBUffer
+        (JNIEnv *, jobject, jobject);
+
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setBeforeAudioMixByteBUffer
+        (JNIEnv *, jobject, jobject);
+
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioMixByteBUffer
+        (JNIEnv *, jobject, jobject);
+
 #ifdef __cplusplus
 }
 #endif

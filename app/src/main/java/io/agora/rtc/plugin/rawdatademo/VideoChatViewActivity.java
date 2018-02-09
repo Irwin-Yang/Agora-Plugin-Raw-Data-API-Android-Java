@@ -15,10 +15,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 
 import io.agora.rtc.Constants;
 import io.agora.rtc.IRtcEngineEventHandler;
@@ -36,38 +32,15 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
     private static final int PERMISSION_REQ_ID_WRITE_EXTERNAL_STORAGE = PERMISSION_REQ_ID_RECORD_AUDIO + 3;
 
     private MediaDataCallbackUtil mediaDataCallbackUtil;
+    private int count = 0;
 
     private RtcEngine mRtcEngine;// Tutorial Step 1
     private final IRtcEngineEventHandler mRtcEventHandler = new IRtcEngineEventHandler() { // Tutorial Step 1
         @Override
-        public void onFirstRemoteVideoDecoded(final int uid, int width, int height, int elapsed) { // Tutorial Step 5
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    setupRemoteVideo(uid);
-                }
-            });
+        public void onFirstRemoteVideoDecoded(final int uid, int width, int height, int elapsed) {
+
         }
 
-        @Override
-        public void onUserOffline(int uid, int reason) { // Tutorial Step 7
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    onRemoteUserLeft();
-                }
-            });
-        }
-
-        @Override
-        public void onUserMuteVideo(final int uid, final boolean muted) { // Tutorial Step 10
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    onRemoteUserVideoMuted(uid, muted);
-                }
-            });
-        }
     };
 
     @Override
@@ -163,12 +136,12 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
     }
 
-    int count = 0;
 
-    // Tutorial Step 10
+
     public void onLocalCaptureClicked(View view) {
         if (mediaDataCallbackUtil != null) {
             mediaDataCallbackUtil.saveCaptureVideoShot("/sdcard/test/capture" + count + ".jpg");
+            Toast.makeText(this, "Picture saved success /sdcard/test/capture" + count +".jpg", Toast.LENGTH_SHORT).show();
             count++;
         }
     }
@@ -189,7 +162,7 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         mRtcEngine.muteLocalAudioStream(iv.isSelected());
     }
 
-    // Tutorial Step 8
+    // Tutorial Step 5
     public void onSwitchCameraClicked(View view) {
         mRtcEngine.switchCamera();
     }
@@ -210,6 +183,12 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         }
         mediaDataCallbackUtil = MediaDataCallbackUtil.the();
         MediaPreProcessing.setCallback(mediaDataCallbackUtil);
+        MediaPreProcessing.setVideoCaptureByteBUffer(mediaDataCallbackUtil.byteBufferCapture);
+        MediaPreProcessing.setVideoRenderByteBUffer(mediaDataCallbackUtil.byteBufferRender);
+        MediaPreProcessing.setAudioRecordByteBUffer(mediaDataCallbackUtil.byteBufferAudioRecord);
+        MediaPreProcessing.setAudioPlayByteBUffer(mediaDataCallbackUtil.byteBufferAudioPlay);
+        MediaPreProcessing.setBeforeAudioMixByteBUffer(mediaDataCallbackUtil.byteBufferBeforeAudioMix);
+        MediaPreProcessing.setAudioMixByteBUffer(mediaDataCallbackUtil.byteBufferAudioMix);
         mediaDataCallbackUtil.addObserverListerner(this);
 
     }
@@ -234,79 +213,42 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         mRtcEngine.joinChannel(null, "demoChannel1", "Extra Optional Data", 0); // if you do not specify the uid, we will generate the uid for you
     }
 
-    // Tutorial Step 5
-    private void setupRemoteVideo(int uid) {
-        FrameLayout container = (FrameLayout) findViewById(R.id.remote_video_view_container);
 
-        if (container.getChildCount() >= 1) {
-            return;
-        }
-
-        SurfaceView surfaceView = RtcEngine.CreateRendererView(getBaseContext());
-        container.addView(surfaceView);
-        mRtcEngine.setupRemoteVideo(new VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_ADAPTIVE, uid));
-
-        surfaceView.setTag(uid); // for mark purpose
-        View tipMsg = findViewById(R.id.quick_tips_when_use_agora_sdk); // optional UI
-        tipMsg.setVisibility(View.GONE);
-    }
-
-    // Tutorial Step 6
+    // Tutorial Step 7
     private void leaveChannel() {
         mRtcEngine.leaveChannel();
     }
 
-    // Tutorial Step 7
-    private void onRemoteUserLeft() {
-        FrameLayout container = (FrameLayout) findViewById(R.id.remote_video_view_container);
-        container.removeAllViews();
-
-        View tipMsg = findViewById(R.id.quick_tips_when_use_agora_sdk); // optional UI
-        tipMsg.setVisibility(View.VISIBLE);
-    }
-
-    // Tutorial Step 10
-    private void onRemoteUserVideoMuted(int uid, boolean muted) {
-        FrameLayout container = (FrameLayout) findViewById(R.id.remote_video_view_container);
-
-        SurfaceView surfaceView = (SurfaceView) container.getChildAt(0);
-
-        Object tag = surfaceView.getTag();
-        if (tag != null && (Integer) tag == uid) {
-            surfaceView.setVisibility(muted ? View.GONE : View.VISIBLE);
-        }
-    }
-
 
     @Override
-    public void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, byte[] buffer, int rotation, long renderTimeMs) {
+    public void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
         Log.i(LOG_TAG, "onCaptureVideoFrame width :" + width + " height:" + height);
     }
 
     @Override
-    public void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, byte[] buffer, int rotation, long renderTimeMs) {
+    public void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
         Log.i(LOG_TAG, "onRenderVideoFrame width :" + width + " height:" + height);
     }
 
     @Override
-    public void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs) {
+    public void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
         Log.i(LOG_TAG, "onRecordAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
 
     }
 
     @Override
-    public void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs) {
-        Log.i(LOG_TAG, "onPlaybackAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
+    public void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
+        Log.i(LOG_TAG, "onPlaybackAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec +" bufferLength: " + bufferLength);
 
     }
 
     @Override
-    public void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs) {
+    public void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
 
     }
 
     @Override
-    public void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, byte[] buffer, long renderTimeMs) {
+    public void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
 
     }
 

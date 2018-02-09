@@ -21,6 +21,13 @@ jmethodID playBeforeMixAudioMethodId = nullptr;
 jmethodID mixAudioMethodId = nullptr;
 jmethodID captureVideoMethodId = nullptr;
 jmethodID renderVideoMethodId = nullptr;
+void *_javaDirectPlayBufferCapture = nullptr;
+void *_javaDirectPlayBufferRender = nullptr;
+void *_javaDirectPlayBufferRecordAudio = nullptr;
+void *_javaDirectPlayBufferPlayAudio = nullptr;
+void *_javaDirectPlayBufferBeforeMixAudio = nullptr;
+void *_javaDirectPlayBufferMixAudio = nullptr;
+
 
 static JavaVM *gJVM = nullptr;
 
@@ -34,46 +41,42 @@ public:
     ~AgoraVideoFrameObserver() {
     }
 
-    void getVideoFrame(VideoFrame &videoFrame, _jmethodID *jmethodID) {
-        int width = videoFrame.width;
-        int height = videoFrame.height;
-        int widthAndheight = width * height;
-        int length = widthAndheight * 3 / 2;
+    void getVideoFrame(VideoFrame &videoFrame, _jmethodID *jmethodID, void *_byteBufferObject) {
 
-        JNIEnv *env = nullptr;
+        if (_byteBufferObject) {
+            int width = videoFrame.width;
+            int height = videoFrame.height;
+            int widthAndheight = width * height;
+            int length = widthAndheight * 3 / 2;
 
-        jint ret = gJVM->AttachCurrentThread(&env, nullptr);
+            JNIEnv *env = nullptr;
 
-        char *yuv = (char *) malloc(length);
-        if (yuv != nullptr) {
-            memcpy(yuv, videoFrame.yBuffer, widthAndheight);
-            memcpy(yuv + widthAndheight, videoFrame.uBuffer, widthAndheight / 4);
-            memcpy(yuv + widthAndheight * 5 / 4, videoFrame.vBuffer, widthAndheight / 4);
+            jint ret = gJVM->AttachCurrentThread(&env, nullptr);
 
-            jbyteArray array = env->NewByteArray(length);
-            env->SetByteArrayRegion(array, 0, length, reinterpret_cast<jbyte *>(yuv));
+            memcpy(_byteBufferObject, videoFrame.yBuffer, widthAndheight);
+            memcpy(_byteBufferObject + widthAndheight, videoFrame.uBuffer, widthAndheight / 4);
+            memcpy(_byteBufferObject + widthAndheight * 5 / 4, videoFrame.vBuffer,
+                   widthAndheight / 4);
 
             env->CallVoidMethod(gCallBack, jmethodID, videoFrame.type, width, height, length,
                                 videoFrame.yStride, videoFrame.uStride,
-                                videoFrame.vStride, array, videoFrame.rotation,
+                                videoFrame.vStride, videoFrame.rotation,
                                 videoFrame.renderTimeMs);
-            env->ReleaseByteArrayElements(array, env->GetByteArrayElements(array, 0), 0);
-            env->DeleteLocalRef(array);
+
+            gJVM->DetachCurrentThread();
+
         }
 
-        gJVM->DetachCurrentThread();
-
-        free(yuv);
     }
 
 public:
     virtual bool onCaptureVideoFrame(VideoFrame &videoFrame) override {
-        getVideoFrame(videoFrame, captureVideoMethodId);
+        getVideoFrame(videoFrame, captureVideoMethodId, _javaDirectPlayBufferCapture);
         return true;
     }
 
     virtual bool onRenderVideoFrame(unsigned int uid, VideoFrame &videoFrame) override {
-        getVideoFrame(videoFrame, renderVideoMethodId);
+        getVideoFrame(videoFrame, renderVideoMethodId, _javaDirectPlayBufferRender);
         return true;
     }
 
@@ -91,45 +94,48 @@ public:
     ~AgoraAudioFrameObserver() {
     }
 
-    void getAudioFrame(AudioFrame &audioFrame, _jmethodID *jmethodID) {
-        JNIEnv *env = nullptr;
-        jint ret = gJVM->AttachCurrentThread(&env, nullptr);
-        if (env == nullptr) {
-            return;
+    void getAudioFrame(AudioFrame &audioFrame, _jmethodID *jmethodID, void *_byteBufferObject) {
+
+        if (_byteBufferObject) {
+            JNIEnv *env = nullptr;
+            jint ret = gJVM->AttachCurrentThread(&env, nullptr);
+            if (env == nullptr) {
+                return;
+            }
+
+            int len = audioFrame.samples * audioFrame.bytesPerSample;
+
+            memcpy(_byteBufferObject, audioFrame.buffer, len);//* sizeof(int16_t)
+
+            env->CallVoidMethod(gCallBack, jmethodID, audioFrame.type, audioFrame.samples,
+                                audioFrame.bytesPerSample,
+                                audioFrame.channels, audioFrame.samplesPerSec,
+                                audioFrame.renderTimeMs, len);
+
+//        gJVM->DetachCurrentThread(); //jira : AE-1861
         }
 
-        int len = audioFrame.samples * audioFrame.bytesPerSample;
-        jbyteArray array = env->NewByteArray(len);
-        env->SetByteArrayRegion(array, 0, len, (jbyte *) audioFrame.buffer);
-        env->CallVoidMethod(gCallBack, jmethodID, audioFrame.type, audioFrame.samples,
-                            audioFrame.bytesPerSample,
-                            audioFrame.channels, audioFrame.samplesPerSec,
-                            array, audioFrame.renderTimeMs);
-
-        env->ReleaseByteArrayElements(array, env->GetByteArrayElements(array, 0), 0);
-        env->DeleteLocalRef(array);
-//        gJVM->DetachCurrentThread(); //jira : AE-1861
     }
 
 public:
     virtual bool onRecordAudioFrame(AudioFrame &audioFrame) override {
-        getAudioFrame(audioFrame, recordAudioMethodId);
+        getAudioFrame(audioFrame, recordAudioMethodId, _javaDirectPlayBufferRecordAudio);
         return true;
     }
 
     virtual bool onPlaybackAudioFrame(AudioFrame &audioFrame) override {
-        getAudioFrame(audioFrame, playbackAudioMethodId);
+        getAudioFrame(audioFrame, playbackAudioMethodId, _javaDirectPlayBufferPlayAudio);
         return true;
     }
 
     virtual bool
     onPlaybackAudioFrameBeforeMixing(unsigned int uid, AudioFrame &audioFrame) override {
-        getAudioFrame(audioFrame, playBeforeMixAudioMethodId);
+        getAudioFrame(audioFrame, playBeforeMixAudioMethodId, _javaDirectPlayBufferBeforeMixAudio);
         return true;
     }
 
     virtual bool onMixedAudioFrame(AudioFrame &audioFrame) override {
-        getAudioFrame(audioFrame, mixAudioMethodId);
+        getAudioFrame(audioFrame, mixAudioMethodId, _javaDirectPlayBufferMixAudio);
         return true;
     }
 };
@@ -146,21 +152,39 @@ extern "C" {
 
 int __attribute__((visibility("default")))
 loadAgoraRtcEnginePlugin(agora::rtc::IRtcEngine *engine) {
-    __android_log_print(ANDROID_LOG_ERROR, "plugin", "plugin loadAgoraRtcEnginePlugin");
+    __android_log_print(ANDROID_LOG_DEBUG, "plugin", "plugin loadAgoraRtcEnginePlugin");
     rtcEngine = engine;
     return 0;
 }
 
 void __attribute__((visibility("default")))
 unloadAgoraRtcEnginePlugin(agora::rtc::IRtcEngine *engine) {
-    __android_log_print(ANDROID_LOG_ERROR, "plugin", "plugin unloadAgoraRtcEnginePlugin");
+    __android_log_print(ANDROID_LOG_DEBUG, "plugin", "plugin unloadAgoraRtcEnginePlugin");
+
     rtcEngine = nullptr;
+
+    gCallBack = nullptr;
+    gCallbackClass = nullptr;
+
+    recordAudioMethodId = nullptr;
+    playbackAudioMethodId = nullptr;
+    playBeforeMixAudioMethodId = nullptr;
+    mixAudioMethodId = nullptr;
+    captureVideoMethodId = nullptr;
+    renderVideoMethodId = nullptr;
+
+    _javaDirectPlayBufferCapture = nullptr;
+    _javaDirectPlayBufferRender = nullptr;
+    _javaDirectPlayBufferRecordAudio = nullptr;
+    _javaDirectPlayBufferPlayAudio = nullptr;
+    _javaDirectPlayBufferBeforeMixAudio = nullptr;
+    _javaDirectPlayBufferMixAudio = nullptr;
 }
 
 
 JNIEXPORT void JNICALL
 Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setCallback(JNIEnv *env, jobject obj,
-                                                        jobject callback) {
+                                                                jobject callback) {
     if (!rtcEngine) return;
 
     env->GetJavaVM(&gJVM);
@@ -177,17 +201,54 @@ Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setCallback(JNIEnv *env, job
     if (gCallBack == nullptr) {
         gCallBack = env->NewGlobalRef(callback);
         gCallbackClass = env->GetObjectClass(gCallBack);
-        recordAudioMethodId = env->GetMethodID(gCallbackClass, "onRecordAudioFrame", "(IIIII[BJ)V");
-        playbackAudioMethodId = env->GetMethodID(gCallbackClass, "onPlaybackAudioFrame", "(IIIII[BJ)V");
+        recordAudioMethodId = env->GetMethodID(gCallbackClass, "onRecordAudioFrame", "(IIIIIJI)V");
+        playbackAudioMethodId = env->GetMethodID(gCallbackClass, "onPlaybackAudioFrame",
+                                                 "(IIIIIJI)V");
         playBeforeMixAudioMethodId = env->GetMethodID(gCallbackClass,
-                                                      "onPlaybackAudioFrameBeforeMixing", "(IIIII[BJ)V");
-        mixAudioMethodId = env->GetMethodID(gCallbackClass, "onMixedAudioFrame", "(IIIII[BJ)V");
+                                                      "onPlaybackAudioFrameBeforeMixing",
+                                                      "(IIIIIJI)V");
+        mixAudioMethodId = env->GetMethodID(gCallbackClass, "onMixedAudioFrame", "(IIIIIJI)V");
 
-        captureVideoMethodId = env->GetMethodID(gCallbackClass, "onCaptureVideoFrame", "(IIIIIII[BIJ)V");
-        renderVideoMethodId = env->GetMethodID(gCallbackClass, "onRenderVideoFrame", "(IIIIIII[BIJ)V");
-        __android_log_print(ANDROID_LOG_ERROR, "setCallback", "Callback is set successfully");
+        captureVideoMethodId = env->GetMethodID(gCallbackClass, "onCaptureVideoFrame",
+                                                "(IIIIIIIIJ)V");
+        renderVideoMethodId = env->GetMethodID(gCallbackClass, "onRenderVideoFrame",
+                                               "(IIIIIIIIJ)V");
+        __android_log_print(ANDROID_LOG_DEBUG, "setCallback", "Callback is set successfully");
     }
 }
+
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoCaptureByteBUffer
+        (JNIEnv *env, jobject obj, jobject bytebuffer) {
+    _javaDirectPlayBufferCapture = env->GetDirectBufferAddress(bytebuffer);
+
+}
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoRenderByteBUffer
+        (JNIEnv *env, jobject obj, jobject bytebuffer) {
+    _javaDirectPlayBufferRender = env->GetDirectBufferAddress(bytebuffer);
+
+}
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioRecordByteBUffer
+        (JNIEnv *env, jobject obj, jobject bytebuffer) {
+    _javaDirectPlayBufferRecordAudio = env->GetDirectBufferAddress(bytebuffer);
+
+}
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioPlayByteBUffer
+        (JNIEnv *env, jobject obj, jobject bytebuffer) {
+    _javaDirectPlayBufferPlayAudio = env->GetDirectBufferAddress(bytebuffer);
+
+}
+JNIEXPORT void JNICALL
+Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setBeforeAudioMixByteBUffer
+        (JNIEnv *env, jobject obj, jobject bytebuffer) {
+    _javaDirectPlayBufferBeforeMixAudio = env->GetDirectBufferAddress(bytebuffer);
+
+}
+JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioMixByteBUffer
+        (JNIEnv *env, jobject obj, jobject bytebuffer) {
+    _javaDirectPlayBufferMixAudio = env->GetDirectBufferAddress(bytebuffer);
+
+}
+
 
 #ifdef __cplusplus
 }
