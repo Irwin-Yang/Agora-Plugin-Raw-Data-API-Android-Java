@@ -40,11 +40,13 @@ compile fileTree(dir: 'libs', include: ['*.jar'])
 
 
 ## 代码示例
-- 在需要接收回调的类，实现回调方法       class implements MediaDataCallbackUtil.MediaDataObserver
-- 初始化 MediaDataCallbackUtil 对象    MediaDataCallbackUtil mediaDataCallbackUtil = MediaDataCallbackUtil.the();
-- 设置数据回调                         MediaPreProcessing.setCallback(mediaDataCallbackUtil);
-- 添加回调监听                         mediaDataCallbackUtil.addObserverListerner(this);
-- 不需要时移除回调监听                  mediaDataCallbackUtil.removeObserverListener(this);
+- 在需要接收回调的类，实现回调方法       class implements MediaDataAudioObserver, MediaDataVideoObserver
+- 初始化 MediaDataObserverPlugin 对象  MediaDataObserverPlugin mediaDataObserverPlugin = MediaDataObserverPlugin.the();
+- 设置数据回调                         MediaPreProcessing.setCallback(mediaDataObserverPlugin);
+- 添加视频数据回调监听                  mediaDataObserverPlugin.addVideoObserver(this);
+- 添加音频数据回调监听                  mediaDataObserverPlugin.addAudioObserver(this);
+- 移除视频回调监听                      mediaDataCallbackUtil.removeVideoObserver(this);
+- 移除音频回调监听                      mediaDataCallbackUtil.removeAudioObserver(this);
 - 本地视频截图                         mediaDataCallbackUtil.saveCaptureVideoShot(path);
 - 远端视频截图                         mediaDataCallbackUtil.saveRenderVideoShot(path);
 

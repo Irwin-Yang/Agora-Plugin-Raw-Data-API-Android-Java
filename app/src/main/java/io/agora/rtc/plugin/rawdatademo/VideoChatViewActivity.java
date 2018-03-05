@@ -19,11 +19,13 @@ import android.widget.Toast;
 import io.agora.rtc.Constants;
 import io.agora.rtc.IRtcEngineEventHandler;
 import io.agora.rtc.RtcEngine;
-import io.agora.rtc.plugin.rawdata.MediaDataCallbackUtil;
+import io.agora.rtc.plugin.rawdata.MediaDataAudioObserver;
+import io.agora.rtc.plugin.rawdata.MediaDataObserverPlugin;
+import io.agora.rtc.plugin.rawdata.MediaDataVideoObserver;
 import io.agora.rtc.plugin.rawdata.MediaPreProcessing;
 import io.agora.rtc.video.VideoCanvas;
 
-public class VideoChatViewActivity extends AppCompatActivity implements MediaDataCallbackUtil.MediaDataObserver {
+public class VideoChatViewActivity extends AppCompatActivity implements MediaDataAudioObserver, MediaDataVideoObserver {
 
     private static final String LOG_TAG = VideoChatViewActivity.class.getSimpleName();
 
@@ -31,7 +33,7 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
     private static final int PERMISSION_REQ_ID_CAMERA = PERMISSION_REQ_ID_RECORD_AUDIO + 1;
     private static final int PERMISSION_REQ_ID_WRITE_EXTERNAL_STORAGE = PERMISSION_REQ_ID_RECORD_AUDIO + 3;
 
-    private MediaDataCallbackUtil mediaDataCallbackUtil;
+    private MediaDataObserverPlugin mediaDataObserverPlugin;
     private int count = 0;
 
     private RtcEngine mRtcEngine;// Tutorial Step 1
@@ -130,8 +132,9 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         leaveChannel();
         RtcEngine.destroy();
         mRtcEngine = null;
-        if (mediaDataCallbackUtil != null) {
-            mediaDataCallbackUtil.removeObserverListener(this);
+        if (mediaDataObserverPlugin != null) {
+            mediaDataObserverPlugin.removeAudioObserver(this);
+            mediaDataObserverPlugin.removeVideoObserver(this);
         }
 
     }
@@ -139,8 +142,8 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
 
     public void onLocalCaptureClicked(View view) {
-        if (mediaDataCallbackUtil != null) {
-            mediaDataCallbackUtil.saveCaptureVideoShot("/sdcard/test/capture" + count + ".jpg");
+        if (mediaDataObserverPlugin != null) {
+            mediaDataObserverPlugin.saveCaptureVideoShot("/sdcard/test/capture" + count + ".jpg");
             Toast.makeText(this, "Picture saved success /sdcard/test/capture" + count +".jpg", Toast.LENGTH_SHORT).show();
             count++;
         }
@@ -181,15 +184,16 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
             throw new RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e));
         }
-        mediaDataCallbackUtil = MediaDataCallbackUtil.the();
-        MediaPreProcessing.setCallback(mediaDataCallbackUtil);
-        MediaPreProcessing.setVideoCaptureByteBUffer(mediaDataCallbackUtil.byteBufferCapture);
-        MediaPreProcessing.setVideoRenderByteBUffer(mediaDataCallbackUtil.byteBufferRender);
-        MediaPreProcessing.setAudioRecordByteBUffer(mediaDataCallbackUtil.byteBufferAudioRecord);
-        MediaPreProcessing.setAudioPlayByteBUffer(mediaDataCallbackUtil.byteBufferAudioPlay);
-        MediaPreProcessing.setBeforeAudioMixByteBUffer(mediaDataCallbackUtil.byteBufferBeforeAudioMix);
-        MediaPreProcessing.setAudioMixByteBUffer(mediaDataCallbackUtil.byteBufferAudioMix);
-        mediaDataCallbackUtil.addObserverListerner(this);
+        mediaDataObserverPlugin = MediaDataObserverPlugin.the();
+        MediaPreProcessing.setCallback(mediaDataObserverPlugin);
+        MediaPreProcessing.setVideoCaptureByteBUffer(mediaDataObserverPlugin.byteBufferCapture);
+        MediaPreProcessing.setVideoRenderByteBUffer(mediaDataObserverPlugin.byteBufferRender);
+        MediaPreProcessing.setAudioRecordByteBUffer(mediaDataObserverPlugin.byteBufferAudioRecord);
+        MediaPreProcessing.setAudioPlayByteBUffer(mediaDataObserverPlugin.byteBufferAudioPlay);
+        MediaPreProcessing.setBeforeAudioMixByteBUffer(mediaDataObserverPlugin.byteBufferBeforeAudioMix);
+        MediaPreProcessing.setAudioMixByteBUffer(mediaDataObserverPlugin.byteBufferAudioMix);
+        mediaDataObserverPlugin.addVideoObserver(this);
+        mediaDataObserverPlugin.addAudioObserver(this);
 
     }
 

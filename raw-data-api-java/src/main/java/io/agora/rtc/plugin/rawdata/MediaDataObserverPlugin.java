@@ -17,9 +17,10 @@ import java.util.List;
  * Created by yt on 2018/2/1/001.
  */
 
-public class MediaDataCallbackUtil implements MediaPreProcessing.ProgressCallback {
+public class MediaDataObserverPlugin implements MediaPreProcessing.ProgressCallback {
 
-    private List<MediaDataObserver> observerList = new ArrayList<>();
+    private List<MediaDataVideoObserver> videoObserverList = new ArrayList<>();
+    private List<MediaDataAudioObserver> audioObserverList = new ArrayList<>();
     public ByteBuffer byteBufferCapture = ByteBuffer.allocateDirect(1382400);//720P
     public ByteBuffer byteBufferRender = ByteBuffer.allocateDirect(1382400);
     public ByteBuffer byteBufferAudioRecord = ByteBuffer.allocateDirect(2048);
@@ -27,29 +28,36 @@ public class MediaDataCallbackUtil implements MediaPreProcessing.ProgressCallbac
     public ByteBuffer byteBufferBeforeAudioMix = ByteBuffer.allocateDirect(2048);
     public ByteBuffer byteBufferAudioMix = ByteBuffer.allocateDirect(2048);
 
-    private static MediaDataCallbackUtil myAgent = null;
+    private static MediaDataObserverPlugin myAgent = null;
     private boolean beCaptureVideoShot = false;
     private boolean beRenderVideoShot = false;
     private String captureFilePath = null;
     private String renderFilePath = null;
 
-    public static MediaDataCallbackUtil the() {
+    public static MediaDataObserverPlugin the() {
         if (myAgent == null) {
-            synchronized (MediaDataCallbackUtil.class) {
+            synchronized (MediaDataObserverPlugin.class) {
                 if (myAgent == null)
-                    myAgent = new MediaDataCallbackUtil();
+                    myAgent = new MediaDataObserverPlugin();
             }
 
         }
         return myAgent;
     }
 
-    public void addObserverListerner(MediaDataObserver observer) {
-        observerList.add(observer);
+    public void addVideoObserver(MediaDataVideoObserver observer) {
+        videoObserverList.add(observer);
     }
 
-    public void removeObserverListener(MediaDataObserver observer) {
-        observerList.remove(observer);
+    public void removeVideoObserver(MediaDataVideoObserver observer) {
+        videoObserverList.remove(observer);
+    }
+    public void addAudioObserver(MediaDataAudioObserver observer) {
+        audioObserverList.add(observer);
+    }
+
+    public void removeAudioObserver(MediaDataAudioObserver observer) {
+        audioObserverList.remove(observer);
     }
 
     public void saveCaptureVideoShot(String filePath) {
@@ -66,7 +74,7 @@ public class MediaDataCallbackUtil implements MediaPreProcessing.ProgressCallbac
     @Override
     public void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
 
-        for (MediaDataObserver observer : observerList) {
+        for (MediaDataVideoObserver observer : videoObserverList) {
             observer.onCaptureVideoFrame(frameType, width, height, bufferLength, yStride, uStride, vStride, rotation, renderTimeMs);
         }
         if (beCaptureVideoShot) {
@@ -78,7 +86,7 @@ public class MediaDataCallbackUtil implements MediaPreProcessing.ProgressCallbac
 
     @Override
     public void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
-        for (MediaDataObserver observer : observerList) {
+        for (MediaDataVideoObserver observer : videoObserverList) {
             observer.onRenderVideoFrame(frameType, width, height, bufferLength, yStride, uStride, vStride, rotation, renderTimeMs);
         }
         if (beRenderVideoShot) {
@@ -89,28 +97,28 @@ public class MediaDataCallbackUtil implements MediaPreProcessing.ProgressCallbac
 
     @Override
     public void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
-        for (MediaDataObserver observer : observerList) {
+        for (MediaDataAudioObserver observer : audioObserverList) {
             observer.onRecordAudioFrame(videoType, samples, bytesPerSample, channels, samplesPerSec, renderTimeMs, bufferLength);
         }
     }
 
     @Override
     public void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
-        for (MediaDataObserver observer : observerList) {
+        for (MediaDataAudioObserver observer : audioObserverList) {
             observer.onPlaybackAudioFrame(videoType, samples, bytesPerSample, channels, samplesPerSec, renderTimeMs, bufferLength);
         }
     }
 
     @Override
     public void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
-        for (MediaDataObserver observer : observerList) {
+        for (MediaDataAudioObserver observer : audioObserverList) {
             observer.onPlaybackAudioFrameBeforeMixing(videoType, samples, bytesPerSample, channels, samplesPerSec, renderTimeMs, bufferLength);
         }
     }
 
     @Override
     public void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
-        for (MediaDataObserver observer : observerList) {
+        for (MediaDataAudioObserver observer : audioObserverList) {
             observer.onMixedAudioFrame(videoType, samples, bytesPerSample, channels, samplesPerSec, renderTimeMs, bufferLength);
         }
     }
@@ -167,17 +175,4 @@ public class MediaDataCallbackUtil implements MediaPreProcessing.ProgressCallbac
         byteBufferAudioMix.clear();
     }
 
-    public interface MediaDataObserver {
-        void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
-
-        void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
-
-        void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
-
-        void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
-
-        void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
-
-        void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
-    }
 }
