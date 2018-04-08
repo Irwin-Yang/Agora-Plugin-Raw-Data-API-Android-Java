@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <pthread.h>
-
+#include "./include/VMUtil.h"
 #define min(X, Y) ((X) < (Y) ? (X) : (Y))
 #define max(X, Y) ((X) > (Y) ? (X) : (Y))
 
@@ -42,16 +42,14 @@ public:
     }
 
     void getVideoFrame(VideoFrame &videoFrame, _jmethodID *jmethodID, void *_byteBufferObject) {
-
         if (_byteBufferObject) {
             int width = videoFrame.width;
             int height = videoFrame.height;
             int widthAndheight = width * height;
             int length = widthAndheight * 3 / 2;
 
-            JNIEnv *env = nullptr;
-
-            jint ret = gJVM->AttachCurrentThread(&env, nullptr);
+            AttachThreadScoped ats(gJVM);
+            JNIEnv *env = ats.env();
 
             memcpy(_byteBufferObject, videoFrame.yBuffer, widthAndheight);
             memcpy(_byteBufferObject + widthAndheight, videoFrame.uBuffer, widthAndheight / 4);
@@ -62,8 +60,6 @@ public:
                                 videoFrame.yStride, videoFrame.uStride,
                                 videoFrame.vStride, videoFrame.rotation,
                                 videoFrame.renderTimeMs);
-
-            gJVM->DetachCurrentThread();
 
         }
 
@@ -95,24 +91,18 @@ public:
     }
 
     void getAudioFrame(AudioFrame &audioFrame, _jmethodID *jmethodID, void *_byteBufferObject) {
-
         if (_byteBufferObject) {
-            JNIEnv *env = nullptr;
-            jint ret = gJVM->AttachCurrentThread(&env, nullptr);
+            AttachThreadScoped ats(gJVM);
+            JNIEnv *env = ats.env();
             if (env == nullptr) {
                 return;
             }
-
             int len = audioFrame.samples * audioFrame.bytesPerSample;
-
             memcpy(_byteBufferObject, audioFrame.buffer, len);//* sizeof(int16_t)
-
             env->CallVoidMethod(gCallBack, jmethodID, audioFrame.type, audioFrame.samples,
                                 audioFrame.bytesPerSample,
                                 audioFrame.channels, audioFrame.samplesPerSec,
                                 audioFrame.renderTimeMs, len);
-
-//        gJVM->DetachCurrentThread(); //jira : AE-1861
         }
 
     }
