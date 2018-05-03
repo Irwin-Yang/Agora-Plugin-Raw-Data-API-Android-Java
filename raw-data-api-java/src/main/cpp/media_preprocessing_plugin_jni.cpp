@@ -6,12 +6,11 @@
 #include "include/IAgoraRtcEngine.h"
 #include <string.h>
 #include "media_preprocessing_plugin_jni.h"
-#include <unistd.h>
-#include <malloc.h>
-#include <pthread.h>
-#include "./include/VMUtil.h"
-#define min(X, Y) ((X) < (Y) ? (X) : (Y))
-#define max(X, Y) ((X) > (Y) ? (X) : (Y))
+#include "include/VMUtil.h"
+
+#include <map>
+
+using namespace std;
 
 jobject gCallBack = nullptr;
 jclass gCallbackClass = nullptr;
@@ -22,23 +21,25 @@ jmethodID mixAudioMethodId = nullptr;
 jmethodID captureVideoMethodId = nullptr;
 jmethodID renderVideoMethodId = nullptr;
 void *_javaDirectPlayBufferCapture = nullptr;
-void *_javaDirectPlayBufferRender = nullptr;
 void *_javaDirectPlayBufferRecordAudio = nullptr;
 void *_javaDirectPlayBufferPlayAudio = nullptr;
 void *_javaDirectPlayBufferBeforeMixAudio = nullptr;
 void *_javaDirectPlayBufferMixAudio = nullptr;
-
+map<int, void *> decodeByfferMap;
 
 static JavaVM *gJVM = nullptr;
 
 class AgoraVideoFrameObserver : public agora::media::IVideoFrameObserver {
 
+    void *_javaDirectPlayBufferRender = nullptr;
 public:
     AgoraVideoFrameObserver() {
+
 
     }
 
     ~AgoraVideoFrameObserver() {
+        _javaDirectPlayBufferRender = nullptr;
     }
 
     void getVideoFrame(VideoFrame &videoFrame, _jmethodID *jmethodID, void *_byteBufferObject) {
@@ -56,7 +57,7 @@ public:
             memcpy(_byteBufferObject + widthAndheight * 5 / 4, videoFrame.vBuffer,
                    widthAndheight / 4);
 
-            env->CallVoidMethod(gCallBack, jmethodID, videoFrame.type, width, height, length,
+            env->CallVoidMethod(gCallBack, jmethodID, uid, videoFrame.type, width, height, length,
                                 videoFrame.yStride, videoFrame.uStride,
                                 videoFrame.vStride, videoFrame.rotation,
                                 videoFrame.renderTimeMs);
@@ -67,12 +68,27 @@ public:
 
 public:
     virtual bool onCaptureVideoFrame(VideoFrame &videoFrame) override {
-        getVideoFrame(videoFrame, captureVideoMethodId, _javaDirectPlayBufferCapture);
+        getVideoFrame(videoFrame, captureVideoMethodId, _javaDirectPlayBufferCapture, 0);
         return true;
     }
 
     virtual bool onRenderVideoFrame(unsigned int uid, VideoFrame &videoFrame) override {
-        getVideoFrame(videoFrame, renderVideoMethodId, _javaDirectPlayBufferRender);
+        if (_javaDirectPlayBufferRender == nullptr) {
+            map<int, void *>::iterator it_find;
+            it_find = decodeByfferMap.find(uid);
+
+            if (it_find != decodeByfferMap.end()) {
+                _javaDirectPlayBufferRender = it_find->second;
+
+                __android_log_print(ANDROID_LOG_DEBUG, "plugin",
+                                    "yttest plugin onRenderVideoFrame : %d _javaDirectDecodeBuffer : %p",
+                                    uid, _javaDirectPlayBufferRender);
+            }
+        }
+        if (_javaDirectPlayBufferRender != nullptr) {
+
+            getVideoFrame(videoFrame, renderVideoMethodId, _javaDirectPlayBufferRender, uid);
+        }
         return true;
     }
 
@@ -164,11 +180,11 @@ unloadAgoraRtcEnginePlugin(agora::rtc::IRtcEngine *engine) {
     renderVideoMethodId = nullptr;
 
     _javaDirectPlayBufferCapture = nullptr;
-    _javaDirectPlayBufferRender = nullptr;
     _javaDirectPlayBufferRecordAudio = nullptr;
     _javaDirectPlayBufferPlayAudio = nullptr;
     _javaDirectPlayBufferBeforeMixAudio = nullptr;
     _javaDirectPlayBufferMixAudio = nullptr;
+
 }
 
 
@@ -200,11 +216,13 @@ Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setCallback(JNIEnv *env, job
         mixAudioMethodId = env->GetMethodID(gCallbackClass, "onMixedAudioFrame", "(IIIIIJI)V");
 
         captureVideoMethodId = env->GetMethodID(gCallbackClass, "onCaptureVideoFrame",
-                                                "(IIIIIIIIJ)V");
+                                                "(IIIIIIIIIJ)V");
         renderVideoMethodId = env->GetMethodID(gCallbackClass, "onRenderVideoFrame",
-                                               "(IIIIIIIIJ)V");
+                                               "(IIIIIIIIIJ)V");
         __android_log_print(ANDROID_LOG_DEBUG, "setCallback", "Callback is set successfully");
+
     }
+
 }
 
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoCaptureByteBUffer
@@ -212,11 +230,7 @@ JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVi
     _javaDirectPlayBufferCapture = env->GetDirectBufferAddress(bytebuffer);
 
 }
-JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoRenderByteBUffer
-        (JNIEnv *env, jobject obj, jobject bytebuffer) {
-    _javaDirectPlayBufferRender = env->GetDirectBufferAddress(bytebuffer);
 
-}
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioRecordByteBUffer
         (JNIEnv *env, jobject obj, jobject bytebuffer) {
     _javaDirectPlayBufferRecordAudio = env->GetDirectBufferAddress(bytebuffer);
@@ -236,6 +250,35 @@ Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setBeforeAudioMixByteBUffer
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioMixByteBUffer
         (JNIEnv *env, jobject obj, jobject bytebuffer) {
     _javaDirectPlayBufferMixAudio = env->GetDirectBufferAddress(bytebuffer);
+
+}
+
+JNIEXPORT void JNICALL
+Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoDecodeByteBUffer(JNIEnv *env,
+                                                                             jobject type,
+                                                                             jint uid,
+                                                                             jobject byteBuffer) {
+    if (byteBuffer == nullptr) {
+        decodeByfferMap.erase(uid);
+    } else {
+        void *_javaDirectDecodeBuffer = env->GetDirectBufferAddress(byteBuffer);
+        decodeByfferMap.insert(make_pair(uid, _javaDirectDecodeBuffer));
+        __android_log_print(ANDROID_LOG_DEBUG, "plugin",
+                            "yttest setVideoDecodeByteBUffer uid :%d, _javaDirectDecodeBuffer : %p",
+                            uid, _javaDirectDecodeBuffer);
+    }
+
+
+}
+JNIEXPORT void JNICALL
+Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_releasePoint(JNIEnv *env, jobject type) {
+
+
+    gCallBack = nullptr;
+    gCallbackClass = nullptr;
+
+    decodeByfferMap.clear();
+
 
 }
 

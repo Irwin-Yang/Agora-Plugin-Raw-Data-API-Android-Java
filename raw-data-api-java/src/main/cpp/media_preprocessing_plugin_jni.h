@@ -17,8 +17,6 @@ JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setCa
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoCaptureByteBUffer
         (JNIEnv *, jobject, jobject);
 
-JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoRenderByteBUffer
-        (JNIEnv *, jobject, jobject);
 
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioRecordByteBUffer
         (JNIEnv *, jobject, jobject);
@@ -31,6 +29,15 @@ JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setBe
 
 JNIEXPORT void JNICALL Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setAudioMixByteBUffer
         (JNIEnv *, jobject, jobject);
+
+JNIEXPORT void JNICALL
+Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_setVideoDecodeByteBUffer(JNIEnv *,
+                                                                             jobject ,
+                                                                             jint,
+                                                                             jobject );
+
+JNIEXPORT void JNICALL
+Java_io_agora_rtc_plugin_rawdata_MediaPreProcessing_releasePoint(JNIEnv *, jobject );
 
 #ifdef __cplusplus
 }

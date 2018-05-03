@@ -1,5 +1,11 @@
 package io.agora.rtc.plugin.rawdatademo;
 
+/**
+ * You should write data from index 7,then get the data ,length is bufferLength
+ * For example:
+ * fileOutputStream.write(data, 7, bufferLength);
+ **/
+
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.PorterDuff;
@@ -14,7 +20,6 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.Toast;
-
 
 import io.agora.rtc.Constants;
 import io.agora.rtc.IRtcEngineEventHandler;
@@ -41,6 +46,36 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         @Override
         public void onFirstRemoteVideoDecoded(final int uid, int width, int height, int elapsed) {
 
+        }
+
+        @Override
+        public void onUserJoined(final int uid, int elapsed) {
+            super.onUserJoined(uid, elapsed);
+            Log.i(LOG_TAG, "onUserJoined " + uid);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+
+                    if (mediaDataObserverPlugin != null) {
+                        mediaDataObserverPlugin.addDecodeBuffer(uid, 1382400);//720P
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void onUserOffline(final int uid, int reason) {
+            super.onUserOffline(uid, reason);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+
+                    if (mediaDataObserverPlugin != null) {
+                        mediaDataObserverPlugin.removeDecodeBuffer(uid);//720P
+                    }
+                }
+            });
         }
 
     };
@@ -135,7 +170,9 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
         if (mediaDataObserverPlugin != null) {
             mediaDataObserverPlugin.removeAudioObserver(this);
             mediaDataObserverPlugin.removeVideoObserver(this);
+            mediaDataObserverPlugin.removeAllBuffer();
         }
+        MediaPreProcessing.releasePoint();
 
     }
 
@@ -144,7 +181,7 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
     public void onLocalCaptureClicked(View view) {
         if (mediaDataObserverPlugin != null) {
             mediaDataObserverPlugin.saveCaptureVideoShot("/sdcard/test/capture" + count + ".jpg");
-            Toast.makeText(this, "Picture saved success /sdcard/test/capture" + count +".jpg", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Picture saved success /sdcard/test/capture" + count + ".jpg", Toast.LENGTH_SHORT).show();
             count++;
         }
     }
@@ -184,10 +221,12 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
             throw new RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e));
         }
+
+        mRtcEngine.setChannelProfile(Constants.CHANNEL_PROFILE_LIVE_BROADCASTING);
+
         mediaDataObserverPlugin = MediaDataObserverPlugin.the();
         MediaPreProcessing.setCallback(mediaDataObserverPlugin);
         MediaPreProcessing.setVideoCaptureByteBUffer(mediaDataObserverPlugin.byteBufferCapture);
-        MediaPreProcessing.setVideoRenderByteBUffer(mediaDataObserverPlugin.byteBufferRender);
         MediaPreProcessing.setAudioRecordByteBUffer(mediaDataObserverPlugin.byteBufferAudioRecord);
         MediaPreProcessing.setAudioPlayByteBUffer(mediaDataObserverPlugin.byteBufferAudioPlay);
         MediaPreProcessing.setBeforeAudioMixByteBUffer(mediaDataObserverPlugin.byteBufferBeforeAudioMix);
@@ -214,6 +253,7 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
     // Tutorial Step 4
     private void joinChannel() {
+        mRtcEngine.setClientRole(Constants.CLIENT_ROLE_BROADCASTER);
         mRtcEngine.joinChannel(null, "demoChannel1", "Extra Optional Data", 0); // if you do not specify the uid, we will generate the uid for you
     }
 
@@ -225,35 +265,42 @@ public class VideoChatViewActivity extends AppCompatActivity implements MediaDat
 
 
     @Override
-    public void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
+    public void onCaptureVideoFrame(byte[] data, int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
         Log.i(LOG_TAG, "onCaptureVideoFrame width :" + width + " height:" + height);
     }
 
     @Override
-    public void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
-        Log.i(LOG_TAG, "onRenderVideoFrame width :" + width + " height:" + height);
+    public void onRenderVideoFrame(int uid, byte[] data, int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs) {
+        Log.i(LOG_TAG, "onRenderVideoFrame width :" + width + " height:" + height + " uid:" + uid);
+        /**
+         * You should write data from index 7,then get the data ,length is bufferLength
+         * For example:
+         * fileOutputStream.write(data, 7, bufferLength);
+         * **/
+
+
     }
 
     @Override
-    public void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
+    public void onRecordAudioFrame(byte[] data, int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
         Log.i(LOG_TAG, "onRecordAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec);
 
     }
 
     @Override
-    public void onPlaybackAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
-        Log.i(LOG_TAG, "onPlaybackAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec +" bufferLength: " + bufferLength);
+    public void onPlaybackAudioFrame(byte[] data, int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
+        Log.i(LOG_TAG, "onPlaybackAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec + " bufferLength: " + bufferLength);
 
     }
 
     @Override
-    public void onPlaybackAudioFrameBeforeMixing(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
+    public void onPlaybackAudioFrameBeforeMixing(byte[] data, int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
 
     }
 
     @Override
-    public void onMixedAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
-
+    public void onMixedAudioFrame(byte[] data, int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength) {
+        Log.i(LOG_TAG, "onMixedAudioFrame samples :" + samples + " bytesPerSample:" + bytesPerSample + " channels:" + channels + " samplesPerSec:" + samplesPerSec + " bufferLength: " + bufferLength);
     }
 
 

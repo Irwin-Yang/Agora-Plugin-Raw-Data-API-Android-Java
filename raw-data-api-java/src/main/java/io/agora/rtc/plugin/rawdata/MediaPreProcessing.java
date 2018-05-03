@@ -10,9 +10,9 @@ public class MediaPreProcessing {
 
     public interface ProgressCallback {
 
-        void onCaptureVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
+        void onCaptureVideoFrame(int uid, int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
 
-        void onRenderVideoFrame(int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
+        void onRenderVideoFrame(int uid, int frameType, int width, int height, int bufferLength, int yStride, int uStride, int vStride, int rotation, long renderTimeMs);
 
         void onRecordAudioFrame(int videoType, int samples, int bytesPerSample, int channels, int samplesPerSec, long renderTimeMs, int bufferLength);
 
@@ -27,8 +27,6 @@ public class MediaPreProcessing {
 
     public static native void setVideoCaptureByteBUffer(ByteBuffer byteBuffer);
 
-    public static native void setVideoRenderByteBUffer(ByteBuffer byteBuffer);
-
     public static native void setAudioRecordByteBUffer(ByteBuffer byteBuffer);
 
     public static native void setAudioPlayByteBUffer(ByteBuffer byteBuffer);
@@ -36,6 +34,10 @@ public class MediaPreProcessing {
     public static native void setBeforeAudioMixByteBUffer(ByteBuffer byteBuffer);
 
     public static native void setAudioMixByteBUffer(ByteBuffer byteBuffer);
+
+    public static native void setVideoDecodeByteBUffer(int uid, ByteBuffer byteBuffer);
+
+    public static native void releasePoint();
 
 
 }
