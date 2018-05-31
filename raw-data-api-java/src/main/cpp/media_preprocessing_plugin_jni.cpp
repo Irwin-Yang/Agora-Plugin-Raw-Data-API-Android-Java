@@ -42,7 +42,9 @@ public:
         _javaDirectPlayBufferRender = nullptr;
     }
 
-    void getVideoFrame(VideoFrame &videoFrame, _jmethodID *jmethodID, void *_byteBufferObject) {
+    void
+    getVideoFrame(VideoFrame &videoFrame, _jmethodID *jmethodID, void *_byteBufferObject, int uid) {
+
         if (_byteBufferObject) {
             int width = videoFrame.width;
             int height = videoFrame.height;
