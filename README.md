@@ -18,7 +18,8 @@
 ```
 
 **然后**是集成 Agora SDK：
- 第一步: 在 [Agora.io SDK](https://www.agora.io/cn/download/) 下载 **视频通话 + 直播 SDK**，解压后将其中的 **libs** 文件夹下的 ***.jar** 复制到本项目的 **app/libs** 下，其中的 **libs** 文件夹下的 **arm64-v8a**/**x86**/**armeabi-v7a** 复制到本项目的 **app/src/main/jniLibs** 下。
+ 第一步: 在 [Agora.io SDK](https://www.agora.io/cn/download/) 下载 **视频通话 + 直播 SDK**，解压后将其中的 **libs** 文件夹下的 ***.jar** 复制到本项目的 **app/libs** 下，其中的 **libs** 文件夹下的 **arm64-v8a**/**x86**/**armeabi-v7a** 复制到本项目的 **app/src/main/jniLibs** 下，其中的**include**文件夹下的所有文件复制到本项目的
+**raw-data-api-java/src/main/cpp/include**下。
 
  第二步: 在本项目的 "app/build.gradle" 文件依赖属性中添加如下依赖关系：
 
@@ -36,7 +37,7 @@ compile fileTree(dir: 'libs', include: ['*.jar'])
 	dependencies {
 	    compile project(path: ':raw-data-api-java')
 	}
-- 项目需要配置 NDK 路径
+- 项目需要配置 NDK 路径，同Android SDK路径配置
 
 
 ## 代码示例
